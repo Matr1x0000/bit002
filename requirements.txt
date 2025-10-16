@@ -1,48 +1,7 @@
-# Python 社区信息管理系统依赖包
+Django==4.2
 
-# 基础依赖
-# - Python 3.11.x（需要在系统中安装）
+# 如需使用MySQL数据库，请安装以下依赖
+# mysqlclient==2.2.4
 
-# Web框架
-Flask>=2.0.0  # Web应用框架
-Flask-SQLAlchemy>=3.0.0  # Flask的SQLAlchemy集成
-Flask-JWT-Extended>=4.4.0  # Flask的JWT认证扩展
-
-# 数据库ORM框架
-SQLAlchemy==2.0.19  # 用于数据库对象关系映射
-
-# 数据库驱动
-mysql-connector-python>=8.0.0  # MySQL数据库驱动
-
-# 数据处理库
-pandas==2.0.3  # 数据处理和分析
-numpy==1.25.2  # 科学计算基础库
-
-# 图表生成库
-matplotlib==3.7.2  # 基础图表生成
-seaborn==0.12.2  # 高级统计图表
-
-# 密码加密
-passlib==1.7.4  # 用于用户密码的安全哈希和验证
-six==1.16.0  # passlib的依赖
-PyJWT>=2.6.0  # JWT令牌生成和验证
-
-# 数据验证
-marshmallow==3.20.1  # 用于数据验证和序列化
-
-# 日期时间处理
-datetime==4.3  # 日期时间处理增强库
-python-dateutil>=2.8.2  # 日期时间处理工具
-
-# Windows特定功能支持
-pywin32==306  # 提供Windows API访问
-
-# 实用工具
-tqdm==4.65.0  # 进度条显示
-python-dotenv>=1.0.0  # 环境变量管理
-requests>=2.31.0  # HTTP客户端
-
-# 开发环境依赖（可选安装）
-# pytest==7.4.0  # 单元测试框架
-# flake8==6.1.0  # 代码质量检查工具
-# black==23.7.0  # 代码格式化工具
+# 如需使用PostgreSQL数据库，请安装以下依赖
+# psycopg2-binary==2.9.9

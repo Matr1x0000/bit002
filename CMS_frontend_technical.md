@@ -2,7 +2,7 @@
 
 ## 一、前端系统概述
 
-本系统前端部分负责提供用户界面，实现数据展示和用户交互，是社区信息管理系统的重要组成部分。前端采用现代化Web技术栈构建，确保界面美观、交互友好、响应迅速，并支持跨浏览器兼容。
+本系统前端部分负责提供用户界面，实现数据展示和用户交互，是社区信息管理系统的重要组成部分。前端采用现代化Web技术栈构建，确保界面美观、交互友好、响应迅速，并支持跨浏览器兼容。前端通过HTTP/HTTPS协议与后端Django REST Framework提供的RESTful API进行通信，实现前后端分离的系统架构。
 
 ## 二、前端技术栈
 
@@ -83,7 +83,7 @@ templates/
 ### 4.1 登录模块
 
 #### 4.1.1 功能描述
-实现系统用户的身份验证与登录，是用户访问系统的入口。
+实现系统用户的身份验证与登录，是用户访问系统的入口。与后端Django Simple JWT认证机制紧密集成，实现安全的用户认证流程。
 
 #### 4.1.2 页面设计
 - 登录表单：包含用户名和密码输入框
@@ -94,14 +94,14 @@ templates/
 1. 用户访问登录页面
 2. 用户输入用户名和密码
 3. 前端进行基本验证（非空检查）
-4. 前端发送POST请求到后端认证API
-5. 后端验证用户凭据，返回认证结果
-6. 认证成功后，前端存储JWT Token并跳转到主页
+4. 前端发送POST请求到后端Django Simple JWT的/token/接口
+5. 后端验证用户凭据，返回JWT Token（access token和refresh token）
+6. 认证成功后，前端存储Token并跳转到主页
 7. 认证失败则显示错误信息
 
 #### 4.1.4 核心代码结构
 ```javascript
-// 登录表单提交处理
+// 登录表单提交处理 - 与后端Django Simple JWT认证机制保持一致
 $("#login-form").submit(function(e) {
     e.preventDefault();
     const username = $("#username").val();
@@ -113,24 +113,48 @@ $("#login-form").submit(function(e) {
         return;
     }
     
-    // 发送登录请求
-    $.ajax({
-        url: '/api/auth/login',
-        type: 'POST',
-        data: JSON.stringify({username, password}),
-        contentType: 'application/json',
-        success: function(response) {
-            // 存储Token
-            localStorage.setItem('token', response.token);
+    // 发送登录请求 - 与后端Django Simple JWT的/token/接口对应
+    apiPost('/token/', {username, password})
+        .then(function(response) {
+            // 存储access token和refresh token
+            setTokens(response.access, response.refresh);
             // 跳转到主页
             window.location.href = '/dashboard';
-        },
-        error: function(xhr) {
-            const errorMsg = xhr.responseJSON?.message || '登录失败，请重试';
+        })
+        .catch(function(xhr) {
+            const errorMsg = xhr.responseJSON?.detail || '登录失败，请检查用户名和密码';
             showError(errorMsg);
-        }
-    });
+        });
 });
+
+// 检查用户是否已登录 - 与后端Django Simple JWT认证机制保持一致
+function checkLoginStatus() {
+    const accessToken = getAccessToken();
+    
+    // 如果没有Token，跳转到登录页面
+    if (!accessToken) {
+        window.location.href = '/login';
+        return;
+    }
+    
+    // 检查Token是否过期
+    if (isTokenExpired(accessToken)) {
+        // 尝试刷新Token
+        refreshAccessToken().catch(() => {
+            // 刷新失败，跳转到登录页面
+            window.location.href = '/login';
+        });
+    }
+}
+
+// 登出功能
+function logout() {
+    // 清除Token
+    removeTokens();
+    
+    // 跳转到登录页面
+    window.location.href = '/login';
+}
 ```
 
 ### 4.2 主页模块
@@ -209,162 +233,294 @@ function renderPopulationTrendChart(data) {
 ### 4.3 居民信息管理模块
 
 #### 4.3.1 功能描述
-实现居民信息的录入、查询、修改和删除等操作。
+居民信息管理模块允许管理员查看、添加、编辑和删除居民信息，支持按姓名、身份证号、地址等条件进行筛选和搜索。与后端Django REST Framework的Resident模型保持一致，支持特殊人群（低保户、五保户、残疾人、特扶户、死亡户、重点对象）的标记和管理。
 
 #### 4.3.2 页面设计
-- 居民信息列表页面：显示居民信息列表，支持分页、搜索和筛选
-- 居民信息添加页面：提供表单用于录入新居民信息
-- 居民信息编辑页面：提供表单用于修改已有居民信息
-- 居民信息详情页面：展示居民的详细信息
+- **居民列表页**：显示所有居民信息，支持分页、筛选和搜索，与后端/api/residents接口交互
+- **居民详情页**：显示居民详细信息，包括基本信息、家庭信息、特殊人群标记等，与后端/api/residents/{id}接口交互
+- **添加/编辑居民页**：表单页面，用于添加或编辑居民信息，字段与后端Resident模型保持一致
 
 #### 4.3.3 交互流程
-1. 用户进入居民信息列表页面
-2. 前端请求居民信息列表数据
-3. 后端返回数据后，前端渲染居民信息表格
-4. 用户可以进行搜索、筛选、分页等操作
-5. 用户可以点击添加按钮进入添加页面
-6. 用户可以点击编辑按钮进入编辑页面
-7. 用户可以点击删除按钮删除居民信息
+1. 用户进入居民信息列表页
+2. 系统加载居民数据并显示在表格中，与后端/api/residents接口交互
+3. 用户可以使用筛选条件和搜索框查找特定居民，支持多条件组合查询和特殊人群筛选
+4. 用户点击查看按钮查看居民详情，与后端/api/residents/{id}接口交互
+5. 用户点击添加按钮进入添加居民页面
+6. 用户填写居民信息并提交，与后端/api/residents接口交互
+7. 系统保存居民信息并返回居民列表页
+8. 用户点击编辑按钮进入编辑居民页面
+9. 用户修改居民信息并提交，与后端/api/residents/{id}接口交互
+10. 系统更新居民信息并返回居民列表页
+11. 用户点击删除按钮删除居民信息
+12. 系统提示确认删除，确认后与后端/api/residents/{id}接口交互删除居民信息并更新列表
 
 #### 4.3.4 核心代码结构
+
 ```javascript
-// 初始化居民列表
-function initResidentList() {
-    // 获取查询参数
-    const params = getQueryParams();
+// 居民列表页代码 - 与后端Resident模型保持一致
+function loadResidentList() {
+    // 获取筛选条件
+    const filters = getFilters();
     
-    // 请求居民列表数据
-    $.ajax({
-        url: '/api/residents',
-        type: 'GET',
-        headers: { 'Authorization': 'Bearer ' + getToken() },
-        data: params,
-        success: function(data) {
-            // 渲染居民表格
-            renderResidentTable(data.items);
-            // 更新分页信息
-            updatePagination(data.total, data.page, data.pageSize);
-        }
-    });
+    // 发送API请求获取居民列表 - 与后端/api/residents接口对应
+    apiGet('/residents', filters)
+        .then(data => {
+            // 渲染居民列表
+            renderResidentList(data);
+        })
+        .catch(error => {
+            console.error('Failed to load resident list:', error);
+            showErrorMessage('加载居民列表失败');
+        });
 }
 
-// 渲染居民表格
-function renderResidentTable(residents) {
-    const tableBody = $('#resident-table-body');
-    tableBody.empty();
-    
-    residents.forEach(resident => {
-        const row = `
-            <tr>
-                <td>${resident.id}</td>
-                <td>${resident.name}</td>
-                <td>${resident.id_card}</td>
-                <td>${resident.gender === 0 ? '男' : '女'}</td>
-                <td>${formatDate(resident.birth_date)}</td>
-                <td>${resident.phone_number}</td>
-                <td>
-                    <button class="btn btn-sm btn-primary" onclick="editResident(${resident.id})">编辑</button>
-                    <button class="btn btn-sm btn-danger" onclick="deleteResident(${resident.id})">删除</button>
-                </td>
-            </tr>
-        `;
-        tableBody.append(row);
-    });
+// 添加居民 - 与后端Resident模型保持一致
+function addResident(residentData) {
+    apiPost('/residents', residentData)
+        .then(() => {
+            showSuccessMessage('添加居民成功');
+            // 返回居民列表页
+            window.location.href = '/residents';
+        })
+        .catch(error => {
+            console.error('Failed to add resident:', error);
+            showErrorMessage('添加居民失败');
+        });
+}
+
+// 编辑居民 - 与后端Resident模型保持一致
+function updateResident(id, residentData) {
+    apiPut(`/residents/${id}`, residentData)
+        .then(() => {
+            showSuccessMessage('更新居民成功');
+            // 返回居民列表页
+            window.location.href = '/residents';
+        })
+        .catch(error => {
+            console.error('Failed to update resident:', error);
+            showErrorMessage('更新居民失败');
+        });
+}
+
+// 删除居民 - 与后端Resident模型保持一致
+function deleteResident(id) {
+    if (confirm('确定要删除这个居民吗？')) {
+        apiDelete(`/residents/${id}`)
+            .then(() => {
+                showSuccessMessage('删除居民成功');
+                // 重新加载居民列表
+                loadResidentList();
+            })
+            .catch(error => {
+                console.error('Failed to delete resident:', error);
+                showErrorMessage('删除居民失败');
+            });
+    }
 }
 ```
 
 ### 4.4 商户信息管理模块
 
 #### 4.4.1 功能描述
-实现商户信息的录入、查询、修改和删除等操作。
+商户信息管理模块允许管理员查看、添加、编辑和删除商户信息，支持按商户名称、行业类型、注册日期等条件进行筛选和搜索。与后端Django REST Framework的Business模型保持一致。
 
 #### 4.4.2 页面设计
-- 商户信息列表页面：显示商户信息列表，支持分页、搜索和筛选
-- 商户信息添加页面：提供表单用于录入新商户信息
-- 商户信息编辑页面：提供表单用于修改已有商户信息
-- 商户信息详情页面：展示商户的详细信息
+- **商户列表页**：显示所有商户信息，支持分页、筛选和搜索
+- **商户详情页**：显示商户详细信息，包括基本信息、联系人信息、经营信息等
+- **添加/编辑商户页**：表单页面，用于添加或编辑商户信息，字段与后端Business模型保持一致
 
 #### 4.4.3 交互流程
-1. 用户进入商户信息列表页面
-2. 前端请求商户信息列表数据
-3. 后端返回数据后，前端渲染商户信息表格
-4. 用户可以进行搜索、筛选、分页等操作
-5. 用户可以点击添加按钮进入添加页面
-6. 用户可以点击编辑按钮进入编辑页面
-7. 用户可以点击删除按钮删除商户信息
+1. 用户进入商户信息列表页
+2. 系统加载商户数据并显示在表格中，与后端/api/businesses接口交互
+3. 用户可以使用筛选条件和搜索框查找特定商户，支持多条件组合查询
+4. 用户点击查看按钮查看商户详情，与后端/api/businesses/{id}接口交互
+5. 用户点击添加按钮进入添加商户页面
+6. 用户填写商户信息并提交，与后端/api/businesses接口交互
+7. 系统保存商户信息并返回商户列表页
+8. 用户点击编辑按钮进入编辑商户页面
+9. 用户修改商户信息并提交，与后端/api/businesses/{id}接口交互
+10. 系统更新商户信息并返回商户列表页
+11. 用户点击删除按钮删除商户信息
+12. 系统提示确认删除，确认后与后端/api/businesses/{id}接口交互删除商户信息并更新列表
 
 #### 4.4.4 核心代码结构
+
 ```javascript
-// 初始化商户列表
-function initBusinessList() {
-    // 获取查询参数
-    const params = getQueryParams();
+// 商户列表页代码 - 与后端Business模型保持一致
+function loadBusinessList() {
+    // 获取筛选条件
+    const filters = getFilters();
     
-    // 请求商户列表数据
-    $.ajax({
-        url: '/api/businesses',
-        type: 'GET',
-        headers: { 'Authorization': 'Bearer ' + getToken() },
-        data: params,
-        success: function(data) {
-            // 渲染商户表格
-            renderBusinessTable(data.items);
-            // 更新分页信息
-            updatePagination(data.total, data.page, data.pageSize);
-        }
-    });
+    // 发送API请求获取商户列表 - 与后端/api/businesses接口对应
+    apiGet('/businesses', filters)
+        .then(data => {
+            // 渲染商户列表
+            renderBusinessList(data);
+        })
+        .catch(error => {
+            console.error('Failed to load business list:', error);
+            showErrorMessage('加载商户列表失败');
+        });
 }
 
-// 添加商户提交处理
-function submitBusinessForm() {
-    // 获取表单数据
-    const formData = getFormData('#business-form');
-    
-    // 表单验证
-    if (!validateBusinessForm(formData)) {
-        return;
+// 添加商户 - 与后端Business模型保持一致
+function addBusiness(businessData) {
+    apiPost('/businesses', businessData)
+        .then(() => {
+            showSuccessMessage('添加商户成功');
+            // 返回商户列表页
+            window.location.href = '/businesses';
+        })
+        .catch(error => {
+            console.error('Failed to add business:', error);
+            showErrorMessage('添加商户失败');
+        });
+}
+
+// 编辑商户 - 与后端Business模型保持一致
+function updateBusiness(id, businessData) {
+    apiPut(`/businesses/${id}`, businessData)
+        .then(() => {
+            showSuccessMessage('更新商户成功');
+            // 返回商户列表页
+            window.location.href = '/businesses';
+        })
+        .catch(error => {
+            console.error('Failed to update business:', error);
+            showErrorMessage('更新商户失败');
+        });
+}
+
+// 删除商户 - 与后端Business模型保持一致
+function deleteBusiness(id) {
+    if (confirm('确定要删除这个商户吗？')) {
+        apiDelete(`/businesses/${id}`)
+            .then(() => {
+                showSuccessMessage('删除商户成功');
+                // 重新加载商户列表
+                loadBusinessList();
+            })
+            .catch(error => {
+                console.error('Failed to delete business:', error);
+                showErrorMessage('删除商户失败');
+            });
     }
-    
-    // 发送添加请求
-    $.ajax({
-        url: '/api/businesses',
-        type: 'POST',
-        headers: { 'Authorization': 'Bearer ' + getToken() },
-        data: JSON.stringify(formData),
-        contentType: 'application/json',
-        success: function() {
-            showSuccess('商户添加成功');
-            setTimeout(() => {
-                window.location.href = '/businesses';
-            }, 1500);
-        },
-        error: function(xhr) {
-            const errorMsg = xhr.responseJSON?.message || '添加失败，请重试';
-            showError(errorMsg);
-        }
-    });
 }
 ```
 
 ### 4.5 物业信息管理模块
 
 #### 4.5.1 功能描述
-实现物业信息的录入、查询、修改和删除等操作。
+物业信息管理模块允许管理员查看、添加、编辑和删除物业信息，支持按物业名称、地址、负责人等条件进行筛选和搜索。与后端Django REST Framework的Property和PropertyManager模型保持一致。
 
 #### 4.5.2 页面设计
-- 物业信息列表页面：显示物业信息列表，支持分页、搜索和筛选
-- 物业信息添加页面：提供表单用于录入新物业信息
-- 物业信息编辑页面：提供表单用于修改已有物业信息
-- 物业信息详情页面：展示物业的详细信息
+- **物业列表页**：显示所有物业信息，支持分页、筛选和搜索，与后端/api/properties接口交互
+- **物业详情页**：显示物业详细信息，包括基本信息、管理人员信息、联系方式等，与后端/api/properties/{id}接口交互
+- **添加/编辑物业页**：表单页面，用于添加或编辑物业信息，字段与后端Property模型保持一致
+- **物业管理员管理**：允许管理物业管理员信息，与后端PropertyManager模型保持一致
 
 #### 4.5.3 交互流程
-1. 用户进入物业信息列表页面
-2. 前端请求物业信息列表数据
-3. 后端返回数据后，前端渲染物业信息表格
-4. 用户可以进行搜索、筛选、分页等操作
-5. 用户可以点击添加按钮进入添加页面
-6. 用户可以点击编辑按钮进入编辑页面
-7. 用户可以点击删除按钮删除物业信息
+1. 用户进入物业信息列表页
+2. 系统加载物业数据并显示在表格中，与后端/api/properties接口交互
+3. 用户可以使用筛选条件和搜索框查找特定物业，支持多条件组合查询
+4. 用户点击查看按钮查看物业详情，与后端/api/properties/{id}接口交互
+5. 用户点击添加按钮进入添加物业页面
+6. 用户填写物业信息并提交，与后端/api/properties接口交互
+7. 系统保存物业信息并返回物业列表页
+8. 用户点击编辑按钮进入编辑物业页面
+9. 用户修改物业信息并提交，与后端/api/properties/{id}接口交互
+10. 系统更新物业信息并返回物业列表页
+11. 用户点击删除按钮删除物业信息
+12. 系统提示确认删除，确认后与后端/api/properties/{id}接口交互删除物业信息并更新列表
+
+#### 4.5.4 核心代码结构
+
+```javascript
+// 物业列表页代码 - 与后端Property模型保持一致
+function loadPropertyList() {
+    // 获取筛选条件
+    const filters = getFilters();
+    
+    // 发送API请求获取物业列表 - 与后端/api/properties接口对应
+    apiGet('/properties', filters)
+        .then(data => {
+            // 渲染物业列表
+            renderPropertyList(data);
+        })
+        .catch(error => {
+            console.error('Failed to load property list:', error);
+            showErrorMessage('加载物业列表失败');
+        });
+}
+
+// 添加物业 - 与后端Property模型保持一致
+function addProperty(propertyData) {
+    apiPost('/properties', propertyData)
+        .then(() => {
+            showSuccessMessage('添加物业成功');
+            // 返回物业列表页
+            window.location.href = '/properties';
+        })
+        .catch(error => {
+            console.error('Failed to add property:', error);
+            showErrorMessage('添加物业失败');
+        });
+}
+
+// 编辑物业 - 与后端Property模型保持一致
+function updateProperty(id, propertyData) {
+    apiPut(`/properties/${id}`, propertyData)
+        .then(() => {
+            showSuccessMessage('更新物业成功');
+            // 返回物业列表页
+            window.location.href = '/properties';
+        })
+        .catch(error => {
+            console.error('Failed to update property:', error);
+            showErrorMessage('更新物业失败');
+        });
+}
+
+// 删除物业 - 与后端Property模型保持一致
+function deleteProperty(id) {
+    if (confirm('确定要删除这个物业吗？')) {
+        apiDelete(`/properties/${id}`)
+            .then(() => {
+                showSuccessMessage('删除物业成功');
+                // 重新加载物业列表
+                loadPropertyList();
+            })
+            .catch(error => {
+                console.error('Failed to delete property:', error);
+                showErrorMessage('删除物业失败');
+            });
+    }
+}
+
+// 管理物业管理员 - 与后端PropertyManager模型保持一致
+function loadPropertyManagers(propertyId) {
+    apiGet(`/properties/${propertyId}/managers`)
+        .then(data => {
+            renderPropertyManagers(data);
+        })
+        .catch(error => {
+            console.error('Failed to load property managers:', error);
+            showErrorMessage('加载物业管理员失败');
+        });
+}
+
+function addPropertyManager(propertyId, managerData) {
+    apiPost(`/properties/${propertyId}/managers`, managerData)
+        .then(() => {
+            showSuccessMessage('添加物业管理员成功');
+            loadPropertyManagers(propertyId);
+        })
+        .catch(error => {
+            console.error('Failed to add property manager:', error);
+            showErrorMessage('添加物业管理员失败');
+        });
+}
+```
 
 ### 4.6 统计分析模块
 
@@ -470,92 +626,194 @@ function renderSpecialPopulationChart(data) {
 ## 六、前端API交互设计
 
 ### 6.1 API请求封装
-前端对所有API请求进行统一封装，处理请求参数、请求头、响应数据和错误处理等。
+前端对所有API请求进行统一封装，处理请求参数、请求头、响应数据和错误处理等，确保与后端Django REST Framework提供的RESTful API接口保持一致。
 
 ```javascript
 // API请求封装
-const ApiService = {
-    // 发送GET请求
-    get: function(url, params = {}) {
-        return this.request('GET', url, { params });
-    },
-    
-    // 发送POST请求
-    post: function(url, data = {}) {
-        return this.request('POST', url, { data });
-    },
-    
-    // 发送PUT请求
-    put: function(url, data = {}) {
-        return this.request('PUT', url, { data });
-    },
-    
-    // 发送DELETE请求
-    delete: function(url) {
-        return this.request('DELETE', url);
-    },
-    
-    // 统一请求处理
-    request: function(method, url, options = {}) {
-        const { params, data } = options;
-        
-        // 构建请求参数
-        const requestOptions = {
-            method,
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': 'Bearer ' + getToken()
+const API_BASE_URL = '/api';
+
+// GET请求 - 与Django REST Framework列表和详情接口对应
+function apiGet(endpoint, params = {}) {
+    return $.ajax({
+        url: `${API_BASE_URL}${endpoint}`,
+        type: 'GET',
+        data: params,
+        beforeSend: function(xhr) {
+            // 添加认证token
+            const accessToken = getAccessToken();
+            if (accessToken) {
+                xhr.setRequestHeader('Authorization', `Bearer ${accessToken}`);
             }
-        };
-        
-        // 处理查询参数
-        let fullUrl = url;
-        if (params && Object.keys(params).length > 0) {
-            const queryString = $.param(params);
-            fullUrl = `${url}?${queryString}`;
         }
-        
-        // 处理请求数据
-        if (data && (method === 'POST' || method === 'PUT')) {
-            requestOptions.body = JSON.stringify(data);
+    }).fail(function(xhr) {
+        handleApiError(xhr);
+    });
+}
+
+// POST请求 - 与Django REST Framework创建接口对应
+function apiPost(endpoint, data = {}) {
+    return $.ajax({
+        url: `${API_BASE_URL}${endpoint}`,
+        type: 'POST',
+        data: JSON.stringify(data),
+        contentType: 'application/json',
+        beforeSend: function(xhr) {
+            // 添加认证token
+            const accessToken = getAccessToken();
+            if (accessToken) {
+                xhr.setRequestHeader('Authorization', `Bearer ${accessToken}`);
+            }
         }
-        
-        // 发送请求
-        return fetch(fullUrl, requestOptions)
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
-                return response.json();
-            })
-            .catch(error => {
-                console.error('API request error:', error);
-                throw error;
+    }).fail(function(xhr) {
+        handleApiError(xhr);
+    });
+}
+
+// PUT请求 - 与Django REST Framework更新接口对应
+function apiPut(endpoint, data = {}) {
+    return $.ajax({
+        url: `${API_BASE_URL}${endpoint}`,
+        type: 'PUT',
+        data: JSON.stringify(data),
+        contentType: 'application/json',
+        beforeSend: function(xhr) {
+            // 添加认证token
+            const accessToken = getAccessToken();
+            if (accessToken) {
+                xhr.setRequestHeader('Authorization', `Bearer ${accessToken}`);
+            }
+        }
+    }).fail(function(xhr) {
+        handleApiError(xhr);
+    });
+}
+
+// PATCH请求 - 与Django REST Framework部分更新接口对应
+function apiPatch(endpoint, data = {}) {
+    return $.ajax({
+        url: `${API_BASE_URL}${endpoint}`,
+        type: 'PATCH',
+        data: JSON.stringify(data),
+        contentType: 'application/json',
+        beforeSend: function(xhr) {
+            // 添加认证token
+            const accessToken = getAccessToken();
+            if (accessToken) {
+                xhr.setRequestHeader('Authorization', `Bearer ${accessToken}`);
+            }
+        }
+    }).fail(function(xhr) {
+        handleApiError(xhr);
+    });
+}
+
+// DELETE请求 - 与Django REST Framework删除接口对应
+function apiDelete(endpoint) {
+    return $.ajax({
+        url: `${API_BASE_URL}${endpoint}`,
+        type: 'DELETE',
+        beforeSend: function(xhr) {
+            // 添加认证token
+            const accessToken = getAccessToken();
+            if (accessToken) {
+                xhr.setRequestHeader('Authorization', `Bearer ${accessToken}`);
+            }
+        }
+    }).fail(function(xhr) {
+        handleApiError(xhr);
+    });
+}
+
+// 文件上传 - 与Django REST Framework文件上传接口对应
+function apiUpload(endpoint, formData) {
+    return $.ajax({
+        url: `${API_BASE_URL}${endpoint}`,
+        type: 'POST',
+        data: formData,
+        processData: false,
+        contentType: false,
+        beforeSend: function(xhr) {
+            // 添加认证token
+            const accessToken = getAccessToken();
+            if (accessToken) {
+                xhr.setRequestHeader('Authorization', `Bearer ${accessToken}`);
+            }
+        }
+    }).fail(function(xhr) {
+        handleApiError(xhr);
+    });
+}
+
+// 错误处理 - 与Django REST Framework错误响应格式保持一致
+function handleApiError(xhr) {
+    if (xhr.status === 401) {
+        // 认证失败，与后端Simple JWT认证机制配合
+        if (isTokenExpired(getAccessToken())) {
+            // 尝试刷新Token
+            refreshAccessToken().then(() => {
+                // 刷新成功后可以选择重试请求
             });
+        } else {
+            // Token无效或未授权，跳转到登录页面
+            removeTokens();
+            window.location.href = '/login';
+        }
+    } else if (xhr.status === 403) {
+        // 权限不足，与后端Django REST Framework权限类保持一致
+        alert('您没有权限执行此操作');
+    } else if (xhr.status === 404) {
+        // 资源不存在
+        alert('请求的资源不存在');
+    } else if (xhr.status === 400) {
+        // 请求参数错误，与后端Django REST Framework序列化器验证错误格式保持一致
+        try {
+            const errorData = JSON.parse(xhr.responseText);
+            let errorMessage = '请求参数错误：';
+            for (const field in errorData) {
+                if (errorData.hasOwnProperty(field)) {
+                    errorMessage += `\n${field}: ${errorData[field].join(', ')}`;
+                }
+            }
+            alert(errorMessage);
+        } catch (e) {
+            alert('请求参数错误，请检查输入');
+        }
+    } else if (xhr.status === 500) {
+        // 服务器错误
+        alert('服务器内部错误，请稍后再试');
+    } else {
+        // 其他错误
+        alert('请求失败，请稍后再试');
     }
-};
-```
+}```
 
 ### 6.2 认证与授权
-前端实现基于JWT的认证与授权机制：
+前端认证与授权机制与后端Django Simple JWT认证系统紧密集成，确保系统安全访问。
 
-1. 登录成功后，将Token存储在localStorage中
-2. 每次API请求时，在请求头中携带Token
-3. 处理Token过期和认证失败的情况
-4. 实现基于角色的访问控制
+#### 6.2.1 JWT Token管理
+- **Token获取**：用户登录成功后从后端Django Simple JWT接口获取JWT Token（access token和refresh token）
+- **Token存储**：将Token安全存储在localStorage中
+- **Token过期处理**：实现基于Django Simple JWT的Token自动刷新机制，当access token即将过期时，使用refresh token获取新的access token
+- **Token清除**：用户登出时清除localStorage中的Token
 
 ```javascript
 // Token管理
-function getToken() {
-    return localStorage.getItem('token');
+function getAccessToken() {
+    return localStorage.getItem('access_token');
 }
 
-function setToken(token) {
-    localStorage.setItem('token', token);
+function getRefreshToken() {
+    return localStorage.getItem('refresh_token');
 }
 
-function removeToken() {
-    localStorage.removeItem('token');
+function setTokens(accessToken, refreshToken) {
+    localStorage.setItem('access_token', accessToken);
+    localStorage.setItem('refresh_token', refreshToken);
+}
+
+function removeTokens() {
+    localStorage.removeItem('access_token');
+    localStorage.removeItem('refresh_token');
 }
 
 // 检查Token是否过期
@@ -568,44 +826,187 @@ function isTokenExpired(token) {
     }
 }
 
-// 拦截器：处理认证失败
+// 刷新Token
+function refreshAccessToken() {
+    const refreshToken = getRefreshToken();
+    if (!refreshToken) {
+        removeTokens();
+        window.location.href = '/login';
+        return Promise.reject('No refresh token available');
+    }
+    
+    return $.ajax({
+        url: '/api/token/refresh/',
+        type: 'POST',
+        data: JSON.stringify({refresh: refreshToken}),
+        contentType: 'application/json'
+    }).then(response => {
+        setTokens(response.access, refreshToken);
+        return response.access;
+    }).catch(() => {
+        removeTokens();
+        window.location.href = '/login';
+        throw new Error('Failed to refresh token');
+    });
+}
+
+// 拦截器：处理认证失败和Token刷新
 function setupAuthInterceptor() {
+    let refreshing = false;
+    let refreshQueue = [];
+    
+    $(document).ajaxSend(function(event, xhr) {
+        // 添加认证头
+        const accessToken = getAccessToken();
+        if (accessToken) {
+            xhr.setRequestHeader('Authorization', 'Bearer ' + accessToken);
+        }
+    });
+    
     $(document).ajaxError(function(event, xhr) {
         if (xhr.status === 401) {
-            // Token过期或无效，跳转到登录页面
-            removeToken();
-            window.location.href = '/login';
+            const request = event.target;
+            const accessToken = getAccessToken();
+            
+            // 如果没有Token或者Token未过期，直接跳转到登录页面
+            if (!accessToken || !isTokenExpired(accessToken)) {
+                removeTokens();
+                window.location.href = '/login';
+                return;
+            }
+            
+            // 处理Token刷新
+            if (!refreshing) {
+                refreshing = true;
+                
+                refreshAccessToken().then(newToken => {
+                    refreshing = false;
+                    
+                    // 重试队列中的请求
+                    refreshQueue.forEach(callback => callback(newToken));
+                    refreshQueue = [];
+                }).catch(() => {
+                    refreshing = false;
+                    refreshQueue = [];
+                });
+            }
+            
+            // 将当前请求加入队列等待重试
+            return new Promise((resolve, reject) => {
+                refreshQueue.push((newToken) => {
+                    // 重新设置请求头
+                    request.setRequestHeader('Authorization', 'Bearer ' + newToken);
+                    
+                    // 重新发送请求
+                    $.ajax({
+                        url: request.url,
+                        type: request.method,
+                        headers: { 'Authorization': 'Bearer ' + newToken },
+                        data: request.data,
+                        contentType: request.contentType
+                    }).then(resolve).catch(reject);
+                });
+            });
         }
     });
 }
 ```
+
+#### 6.2.2 用户角色与权限管理
+- **角色识别**：通过Token解析用户角色信息
+- **动态路由**：根据用户角色动态生成可访问的路由
+- **权限验证**：在组件级别实现细粒度的权限验证，与后端基于角色的访问控制（RBAC）保持一致
+
+```javascript
+// 用户角色与权限管理
+function getUserRole() {
+    const token = getAccessToken();
+    if (token) {
+        try {
+            const decoded = jwt_decode(token);
+            return decoded.role;
+        } catch (e) {
+            return null;
+        }
+    }
+    return null;
+}
+
+function hasPermission(permission) {
+    const token = getAccessToken();
+    if (token) {
+        try {
+            const decoded = jwt_decode(token);
+            return decoded.permissions && decoded.permissions.includes(permission);
+        } catch (e) {
+            return false;
+        }
+    }
+    return false;
+}
+
+function canAccessRoute(route) {
+    // 公开路由无需验证
+    if (route.public) {
+        return true;
+    }
+    
+    // 检查登录状态
+    const token = getAccessToken();
+    if (!token || isTokenExpired(token)) {
+        return false;
+    }
+    
+    // 检查角色和权限
+    const userRole = getUserRole();
+    const requiredRoles = route.requiredRoles || [];
+    const requiredPermissions = route.requiredPermissions || [];
+    
+    // 角色检查
+    if (requiredRoles.length > 0 && !requiredRoles.includes(userRole)) {
+        return false;
+    }
+    
+    // 权限检查
+    for (const permission of requiredPermissions) {
+        if (!hasPermission(permission)) {
+            return false;
+        }
+    }
+    
+    return true;
+}
 
 ## 七、前端数据流向
 
 ### 7.1 数据输入流程
 1. 用户通过前端界面输入数据
 2. 前端进行客户端验证
-3. 前端将数据以JSON格式发送到后端
-4. 后端接收数据，进行服务端验证和处理
-5. 后端返回处理结果
-6. 前端根据返回结果更新界面和显示提示信息
+3. 前端将数据以JSON格式发送到后端Django REST Framework API
+4. 后端Django REST Framework视图接收数据，通过序列化器进行服务端验证和数据转换
+5. 后端通过Django ORM将验证通过的数据持久化到MySQL数据库
+6. 后端返回操作结果给前端
+7. 前端根据返回结果更新界面和显示提示信息
 
 ### 7.2 数据查询流程
 1. 用户在前端界面发起数据查询请求
 2. 前端构造请求参数，携带JWT Token
-3. 前端发送GET请求到后端API
-4. 后端验证Token合法性并执行数据查询
-5. 后端将查询结果转换为JSON格式并返回
-6. 前端接收数据，渲染界面或更新图表
+3. 前端发送GET请求到后端Django REST Framework API
+4. 后端Django REST Framework通过Simple JWT验证Token合法性并解析查询条件
+5. 后端通过Django ORM查询集(QuerySet)从MySQL数据库查询数据
+6. 后端序列化器将查询结果序列化为JSON格式并返回
+7. 前端接收数据，渲染界面或更新图表
 
 ### 7.3 数据更新流程
 1. 用户在前端填写表单或编辑数据
 2. 前端进行数据验证
 3. 前端构造数据对象，携带JWT Token
-4. 前端发送POST/PUT请求到后端API
-5. 后端验证Token合法性并执行数据更新操作
-6. 后端返回更新结果
-7. 前端根据返回结果更新界面和显示提示信息
+4. 前端发送POST/PUT请求到后端Django REST Framework API
+5. 后端Django REST Framework通过Simple JWT验证Token合法性
+6. 后端序列化器解析请求数据，执行数据验证
+7. 后端通过Django ORM执行数据存储或更新操作
+8. 后端返回更新结果
+9. 前端根据返回结果更新界面和显示提示信息
 
 ## 八、前端性能优化
 
@@ -635,26 +1036,28 @@ function setupAuthInterceptor() {
 
 ## 九、前端安全机制
 
+前端安全机制与后端Django安全体系紧密配合，共同构建完整的系统安全防护。
+
 ### 9.1 防止XSS攻击
-- **输入验证**：对用户输入进行严格验证
+- **输入验证**：对用户输入进行严格验证，与后端Django Forms和ModelForms验证形成双重保障
 - **输出编码**：对输出到页面的内容进行HTML编码
-- **内容安全策略(CSP)**：配置CSP策略
+- **内容安全策略(CSP)**：配置CSP策略，与后端Django security middleware协同工作
 - **XSS过滤器**：实现XSS过滤功能
 
 ### 9.2 防止CSRF攻击
-- **CSRF Token**：使用CSRF Token验证请求
-- **SameSite Cookie**：设置Cookie的SameSite属性
-- **Origin检查**：验证请求的Origin和Referer
+- **CSRF Token**：使用Django内置的CSRF Token验证机制，自动包含在表单和AJAX请求中
+- **SameSite Cookie**：与后端同步设置Cookie的SameSite属性
+- **Origin检查**：验证请求的Origin和Referer，与后端Django安全配置保持一致
 
 ### 9.3 数据安全
-- **敏感数据加密**：敏感数据在前端加密后传输
-- **安全存储**：安全存储用户凭证和敏感信息
+- **敏感数据加密**：敏感数据在前端加密后传输，与后端Django的加密功能配合使用
+- **安全存储**：使用localStorage安全存储JWT Token等信息，配合后端Simple JWT认证机制
 - **数据脱敏**：在前端展示时对敏感数据进行脱敏处理
 
 ### 9.4 安全访问控制
-- **前端路由守卫**：实现路由级别的访问控制
-- **组件级权限控制**：实现组件级别的权限控制
-- **操作日志记录**：记录用户的关键操作日志
+- **前端路由守卫**：实现路由级别的访问控制，与后端Django REST Framework的权限类协同工作
+- **组件级权限控制**：实现组件级别的权限控制，与后端基于角色的访问控制（RBAC）保持一致
+- **操作日志记录**：记录用户的关键操作日志，与后端Django admin日志记录功能互补
 
 ## 十、浏览器兼容性要求
 
@@ -700,37 +1103,72 @@ function setupAuthInterceptor() {
 
 ## 十二、前端部署说明
 
+前端部署应与后端Django系统部署协同进行，确保前后端集成顺畅。
+
 ### 12.1 开发环境部署
-1. 安装Node.js和npm
-2. 安装项目依赖：`npm install`
-3. 运行开发服务器：`npm run dev`
+1. **安装依赖**：确保Node.js环境正确安装后，使用npm install命令安装项目依赖
+2. **配置开发环境**：设置开发环境变量，配置与后端Django开发服务器的连接参数
+3. **启动开发服务器**：使用npm run dev命令启动前端开发服务器
+4. **访问应用**：在浏览器中访问前端应用，确保能正确连接到后端Django开发服务器
 
 ### 12.2 生产环境部署
-1. 构建生产版本：`npm run build`
-2. 将构建产物部署到Web服务器
-3. 配置Web服务器（如Nginx）
+1. **构建应用**：使用npm run build命令构建生产版本
+2. **配置生产环境**：设置生产环境变量，指向生产环境的Django REST Framework API端点
+3. **部署到服务器**：将构建后的文件部署到Web服务器静态文件目录
+4. **配置Web服务器**：配置Nginx等Web服务器，与后端Django应用部署在同一服务器或通过负载均衡连接
+5. **设置HTTPS**：配置SSL证书，启用HTTPS访问，与后端Django应用的HTTPS配置保持一致
+
+### 12.3 Nginx配置示例
 
 ```nginx
 server {
     listen 80;
     server_name example.com;
-    
-    root /path/to/dist;
+    return 301 https://$host$request_uri;
+}
+
+server {
+    listen 443 ssl;
+    server_name example.com;
+    root /path/to/frontend/dist;
     index index.html;
+    
+    # SSL配置
+    ssl_certificate /path/to/ssl/certificate.crt;
+    ssl_certificate_key /path/to/ssl/private.key;
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_prefer_server_ciphers off;
     
     location / {
         try_files $uri $uri/ /index.html;
     }
     
+    # 代理API请求到Django REST Framework
     location /api {
-        proxy_pass http://localhost:5000;
+        proxy_pass http://localhost:8000;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+    
+    # 静态资源优化
+    gzip on;
+    gzip_types text/plain text/css application/json application/javascript text/xml application/xml application/xml+rss text/javascript;
+    
+    # 缓存配置
+    location ~* \.(jpg|jpeg|png|gif|ico|css|js)$ {
+        expires 30d;
+        add_header Cache-Control "public, max-age=2592000";
     }
 }
 ```
 
-### 12.3 性能监控与优化
+### 12.4 Docker部署集成
+
+前端应用可与后端Django应用一起使用Docker容器化部署，通过Docker Compose编排服务。建议将前端静态文件构建后放入Nginx容器，与Django应用容器通过网络连接，实现完整的容器化部署方案。
+
+### 12.5 性能监控与优化
 - 配置前端性能监控工具
 - 定期分析性能数据
 - 根据性能分析结果进行优化

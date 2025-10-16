@@ -1,0 +1,145 @@
+# Python相关
+__pycache__/
+*.py[cod]
+*$py.class
+
+# 虚拟环境
+venv/
+env/
+ENV/
+.env
+
+# 日志文件
+*.log
+logs/
+
+# 数据库文件
+*.db
+*.sqlite3
+
+# 操作系统文件
+.DS_Store
+Thumbs.db
+
+# IDE配置文件
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# 临时文件
+*.tmp
+*.temp
+.tmp/
+.temp/
+
+# 构建文件
+build/
+dist/
+*.egg-info/
+
+# 测试覆盖率
+.coverage
+.coverage.*
+htmlcov/
+
+# 导出的数据
+export/
+*.csv
+*.xlsx
+*.json
+
+# 本地配置文件
+local_settings.py
+config.ini
+
+# Windows特定
+*.dll
+*.exe
+*.obj
+*.ilk
+*.pdb
+*.lib
+*.exp
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# macOS特定
+.AppleDouble
+.LSOverride
+
+# Linux特定
+*~
+.fuse_hidden*
+.directory
+.Trash-
+.nfs*
+
+# Flask相关
+instance/
+.webassets-cache
+
+# 其他
+*.pem
+*.key
+*.cert
+*.bak
+*.old
+*.orig
+*.rej
+.cache/
+.parcel-cache/
+.next/
+out/
+.cache/
+.turbo/
+.vite/
+
+# 敏感信息
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# 生产环境配置
+production_config.py
+
+# Docker相关
+Dockerfile
+.dockerignore
+
+# Nginx配置
+nginx.conf
+*.nginx
+
+# 其他忽略项
+*.zip
+*.tar.gz
+*.rar
+*.7z
+*.gzip
+
+# 日志目录
+logs/
+
+# 上传文件目录
+uploads/
+
+# 缓存目录
+cache/
+
+# 自定义忽略
+*.local
+*.development
+*.testing
+*.production
+
+# 防止意外提交的文件
+*.sensitive
+*.private
+*.secret
