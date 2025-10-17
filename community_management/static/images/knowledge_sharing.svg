@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200" viewBox="0 0 200 200">
+  <!-- 背景圆形 -->
+  <circle cx="100" cy="100" r="90" fill="#f8f9fa" stroke="#e9ecef" stroke-width="2"/>
+  
+  <!-- 书本 -->
+  <rect x="60" y="80" width="80" height="60" rx="4" fill="#ffffff" stroke="#0071e3" stroke-width="3"/>
+  <rect x="65" y="85" width="70" height="50" rx="2" fill="#f0f8ff"/>
+  
+  <!-- 书本页面 -->
+  <path d="M65,85 L75,80 L75,130 L65,135 Z" fill="#e3f2fd"/>
+  
+  <!-- 灯泡（象征知识） -->
+  <circle cx="100" cy="60" r="20" fill="#ffffff" stroke="#ffc107" stroke-width="3"/>
+  <path d="M90,80 L110,80 L110,85 L90,85 Z" fill="#ffc107"/>
+  <path d="M98,65 L102,65 L102,80 L98,80 Z" fill="#ffc107"/>
+  
+  <!-- 光芒 -->
+  <path d="M100,35 L100,45" stroke="#ffc107" stroke-width="2"/>
+  <path d="M100,155 L100,165" stroke="#ffc107" stroke-width="2"/>
+  <path d="M35,100 L45,100" stroke="#ffc107" stroke-width="2"/>
+  <path d="M155,100 L165,100" stroke="#ffc107" stroke-width="2"/>
+  <path d="M54.14,54.14 L62.14,62.14" stroke="#ffc107" stroke-width="2"/>
+  <path d="M137.86,137.86 L145.86,145.86" stroke="#ffc107" stroke-width="2"/>
+  <path d="M54.14,145.86 L62.14,137.86" stroke="#ffc107" stroke-width="2"/>
+  <path d="M137.86,62.14 L145.86,54.14" stroke="#ffc107" stroke-width="2"/>
+</svg>

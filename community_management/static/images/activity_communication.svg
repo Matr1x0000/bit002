@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200" viewBox="0 0 200 200">
+  <!-- 背景圆形 -->
+  <circle cx="100" cy="100" r="90" fill="#f8f9fa" stroke="#e9ecef" stroke-width="2"/>
+  
+  <!-- 人物1 -->
+  <circle cx="70" cy="85" r="15" fill="#4285f4"/>
+  <circle cx="70" cy="80" r="6" fill="#ffffff"/>
+  <circle cx="70" cy="80" r="3" fill="#000000"/>
+  <path d="M65,95 Q70,100 75,95" stroke="#ffffff" stroke-width="2" fill="none"/>
+  <path d="M70,100 L70,130" stroke="#4285f4" stroke-width="6"/>
+  
+  <!-- 人物2 -->
+  <circle cx="130" cy="85" r="15" fill="#34a853"/>
+  <circle cx="130" cy="80" r="6" fill="#ffffff"/>
+  <circle cx="130" cy="80" r="3" fill="#000000"/>
+  <path d="M125,95 Q130,100 135,95" stroke="#ffffff" stroke-width="2" fill="none"/>
+  <path d="M130,100 L130,130" stroke="#34a853" stroke-width="6"/>
+  
+  <!-- 对话气泡 -->
+  <path d="M85,80 C85,70 115,70 115,80 L115,95 Q115,105 105,105 L95,105 Q85,105 85,95 Z" fill="#ffffff" stroke="#fbbc05" stroke-width="3"/>
+  
+  <!-- 连接线 -->
+  <path d="M70,130 C70,140 130,140 130,130" stroke="#ea4335" stroke-width="3" stroke-dasharray="5,3"/>
+  
+  <!-- 交流符号 -->
+  <circle cx="100" cy="115" r="3" fill="#fbbc05"/>
+  <circle cx="100" cy="125" r="3" fill="#fbbc05"/>
+  <circle cx="100" cy="135" r="3" fill="#fbbc05"/>
+</svg>

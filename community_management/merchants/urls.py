@@ -1,6 +1,6 @@
 from django.urls import path
-from .views import business_api
+from .views import merchants
 
 urlpatterns = [
-    path('', business_api, name='business_api'),
+    path('', merchants, name='merchants'),
 ]

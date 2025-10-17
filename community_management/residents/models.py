@@ -140,3 +140,213 @@ class Resident(models.Model):
 
     def __str__(self):
         return self.name
+
+class Building(models.Model):
+    """楼房信息模型"""
+    # 居民ID，外键关联到residents表
+    resident = models.ForeignKey('Resident', on_delete=models.CASCADE, verbose_name='居民')
+    # 楼房号
+    building_number = models.IntegerField(verbose_name='楼房号')
+    # 户号ID，外键关联到house表
+    house_number = models.ForeignKey('address.House', on_delete=models.CASCADE, verbose_name='户号')
+    # 登记日期
+    registration_date = models.DateTimeField(auto_now_add=True, verbose_name='登记日期')
+    # 最后更新时间
+    last_update_time = models.DateTimeField(auto_now=True, verbose_name='最后更新时间')
+
+    class Meta:
+        # 设置表名
+        db_table = 'building'
+        # 设置中文显示名称
+        verbose_name = '楼房信息'
+        verbose_name_plural = '楼房信息'
+        # 设置索引
+        indexes = [
+            # resident_id, house_number_id复合索引
+            models.Index(fields=['resident', 'house_number'], name='idx_resident_house_number'),
+        ]
+
+    def __str__(self):
+        """返回楼房的字符串表示"""
+        return f'{self.resident.name} - {self.house_number}单元 - {self.building_number}'
+
+class Bungalow(models.Model):
+    """平房信息模型"""
+    resident = models.ForeignKey('Resident', on_delete=models.CASCADE, verbose_name='居民')
+    bungalow_number = models.CharField(max_length=50, verbose_name='平房号')
+    hutong = models.ForeignKey('address.Hutong', on_delete=models.CASCADE, verbose_name='胡同')
+    registration_date = models.DateTimeField(default=timezone.now, verbose_name='登记日期')
+    last_update_time = models.DateTimeField(auto_now=True, verbose_name='最后更新时间')
+
+    class Meta:
+        db_table = 'bungalow'
+        verbose_name = '平房信息'
+        verbose_name_plural = '平房信息'
+        indexes = [
+            models.Index(fields=['resident', 'bungalow_number'], name='idx_bungalow_resident_number'),
+        ]
+
+    def __str__(self):
+        return f'{self.bungalow_number} - {self.resident.name}'
+
+class LowIncome(models.Model):
+    """
+    低保户详细信息模型
+    用于存储低保户的详细信息
+    """
+    # 低保户唯一标识（Django会自动创建自增主键id）
+    resident = models.ForeignKey('Resident', on_delete=models.CASCADE, verbose_name='居民ID', db_column='resident_id')
+    authentication_date = models.DateTimeField(verbose_name='认证日期', null=False)
+    bank_account_number = models.CharField(max_length=50, verbose_name='银行卡号（唯一）', unique=True, null=False)
+    bank_account_name = models.CharField(max_length=100, verbose_name='银行卡账户名称', null=False)
+    registration_date = models.DateTimeField(verbose_name='登记日期', auto_now_add=True, null=False)
+    last_update_time = models.DateTimeField(verbose_name='最后更新时间', auto_now=True, null=False)
+
+    class Meta:
+        db_table = 'low_income'
+        verbose_name = '低保户信息'
+        verbose_name_plural = '低保户信息'
+        indexes = [
+            models.Index(fields=['resident_id'], name='idx_low_income_resident_id'),
+        ]
+
+    def __str__(self):
+        return f"低保户 {self.id} - 居民ID: {self.resident_id}"
+
+class FiveGuarantees(models.Model):
+    """
+    五保户信息表
+    存储五保户的详细信息
+    """
+    id = models.AutoField(primary_key=True, verbose_name='五保户唯一标识')
+    resident = models.ForeignKey('Resident', on_delete=models.CASCADE, 
+                               verbose_name='居民ID', related_name='five_guarantees')
+    authentication_date = models.DateTimeField(verbose_name='认证日期', null=False)
+    bank_account_number = models.CharField(max_length=50, unique=True, 
+                                         verbose_name='银行卡号（唯一）', null=False)
+    bank_account_name = models.CharField(max_length=100, verbose_name='银行卡账户名称', null=False)
+    registration_date = models.DateTimeField(auto_now_add=True, verbose_name='登记日期')
+    last_update_time = models.DateTimeField(auto_now=True, verbose_name='最后更新时间')
+
+    class Meta:
+        db_table = 'five_guarantees'
+        verbose_name = '五保户信息'
+        verbose_name_plural = '五保户信息'
+        indexes = [
+            models.Index(fields=['resident_id'], name='idx_five_guar_resident_id'),
+        ]
+
+    def __str__(self):
+        return f'五保户信息 - 居民ID: {self.resident_id}'
+
+class Disabled(models.Model):
+    """
+    残疾人信息表
+    存储残疾人的详细信息
+    """
+    id = models.AutoField(primary_key=True, verbose_name='残疾人唯一标识')
+    resident = models.ForeignKey('Resident', on_delete=models.CASCADE, 
+                               verbose_name='居民ID', related_name='disabled')
+    authentication_date = models.DateTimeField(verbose_name='认证日期', null=False)
+    bank_account_number = models.CharField(max_length=50, unique=True, 
+                                         verbose_name='银行卡号（唯一）', null=False)
+    bank_account_name = models.CharField(max_length=100, verbose_name='银行卡账户名称', null=False)
+    registration_date = models.DateTimeField(auto_now_add=True, verbose_name='登记日期')
+    last_update_time = models.DateTimeField(auto_now=True, verbose_name='最后更新时间')
+
+    class Meta:
+        db_table = 'disabled'
+        verbose_name = '残疾人信息'
+        verbose_name_plural = '残疾人信息'
+        indexes = [
+            models.Index(fields=['resident_id'], name='idx_disabled_resident_id'),
+        ]
+
+    def __str__(self):
+        return f'残疾人信息 - 居民ID: {self.resident_id}'
+
+class Deceased(models.Model):
+    """
+    死亡户信息表
+    存储死亡户的详细信息
+    """
+    id = models.AutoField(primary_key=True, verbose_name='死亡户唯一标识')
+    resident = models.ForeignKey('Resident', on_delete=models.CASCADE, 
+                               verbose_name='居民ID', related_name='deceased')
+    deceased_date = models.DateTimeField(verbose_name='死亡日期', null=False)
+    deceased_place = models.CharField(max_length=100, verbose_name='死亡地点', null=False)
+    deceased_reason = models.CharField(max_length=255, verbose_name='死亡原因', null=False)
+    deceased_contact_name = models.CharField(max_length=100, verbose_name='联系人姓名', null=False)
+    deceased_contact_phone = models.CharField(max_length=20, verbose_name='联系人电话', null=False)
+    registration_date = models.DateTimeField(auto_now_add=True, verbose_name='登记日期')
+    last_update_time = models.DateTimeField(auto_now=True, verbose_name='最后更新时间')
+
+    class Meta:
+        db_table = 'deceased'
+        verbose_name = '死亡户信息'
+        verbose_name_plural = '死亡户信息'
+        indexes = [
+            models.Index(fields=['resident_id'], name='idx_deceased_resident_id'),
+        ]
+
+    def __str__(self):
+        return f'死亡户信息 - 居民ID: {self.resident_id}'
+
+class SpecialNeeds(models.Model):
+    """
+    特扶户详细信息模型
+    用于存储特扶户的详细信息
+    """
+    # 特扶户唯一标识（Django会自动创建自增主键id）
+    resident = models.ForeignKey('Resident', on_delete=models.CASCADE, verbose_name='居民ID', db_column='resident_id')
+    authentication_date = models.DateTimeField(verbose_name='认证日期', null=False)
+    bank_account_number = models.CharField(max_length=50, verbose_name='银行卡号（唯一）', unique=True, null=False)
+    bank_account_name = models.CharField(max_length=100, verbose_name='银行卡账户名称', null=False)
+    registration_date = models.DateTimeField(verbose_name='登记日期', auto_now_add=True, null=False)
+    last_update_time = models.DateTimeField(verbose_name='最后更新时间', auto_now=True, null=False)
+
+    class Meta:
+        db_table = 'special_needs'
+        verbose_name = '特扶户信息'
+        verbose_name_plural = '特扶户信息'
+        indexes = [
+            models.Index(fields=['resident_id'], name='idx_special_needs_resident_id'),
+        ]
+
+    def __str__(self):
+        return f"特扶户 {self.id} - 居民ID: {self.resident_id}"
+    
+class SpecialObjects(models.Model):
+    """
+    重点对象详细信息模型
+    用于存储重点对象的详细信息
+    """
+    # 对象类型选项
+    OBJECT_TYPE_CHOICES = [
+        (0, '信访'),
+        (1, '新疆'),
+        (2, '西藏'),
+    ]
+    
+    # 重点对象唯一标识（Django会自动创建自增主键id）
+    resident = models.ForeignKey('Resident', on_delete=models.CASCADE, verbose_name='居民ID', db_column='resident_id')
+    object_type = models.IntegerField(verbose_name='对象类型', choices=OBJECT_TYPE_CHOICES, null=False)
+    object_name = models.CharField(max_length=100, verbose_name='对象姓名', null=False)
+    object_contact_phone = models.CharField(max_length=20, verbose_name='对象联系电话', null=False)
+    object_address = models.CharField(max_length=255, verbose_name='对象住址', null=False)
+    object_responsible_name = models.CharField(max_length=100, verbose_name='负责人姓名', null=False)
+    object_responsible_phone = models.CharField(max_length=20, verbose_name='负责人联系电话', null=False)
+    registration_date = models.DateTimeField(verbose_name='登记日期', auto_now_add=True, null=False)
+    last_update_time = models.DateTimeField(verbose_name='最后更新时间', auto_now=True, null=False)
+
+    class Meta:
+        db_table = 'special_objects'
+        verbose_name = '重点对象信息'
+        verbose_name_plural = '重点对象信息'
+        indexes = [
+            models.Index(fields=['resident_id'], name='idx_special_obj_resident_id'),
+        ]
+
+    def __str__(self):
+        return f"重点对象 {self.id} - 居民ID: {self.resident_id} - {self.get_object_type_display()}"
+
